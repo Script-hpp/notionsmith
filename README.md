@@ -3,21 +3,15 @@
 Handwritten notes from a phone note-taking app, ending up as searchable pages in
 Notion, tagged by course, without ever touching the app's proprietary file format.
 
-notionsmith watches a folder for PDFs exported from [Notein](https://play.google.com/store/apps/details?id=com.orion.notein.global)
-(`.in` files, a plain ZIP archive around a Room/SQLite database, with the actual
-handwriting stored as an undocumented protobuf blob), uploads each one to a single
-Notion database, and tags it with a `Course` select property derived from the
-filename.
+notionsmith watches a folder for PDFs exported from [Notein](https://play.google.com/store/apps/details?id=com.orion.notein.global),
+uploads each one to a single Notion database, and tags it with a `Course` select
+property derived from the filename.
 
 ## Why this exists
 
-Notein stores handwriting in a proprietary format with no public spec
-(`ink_stroke_blob`, tagged `notein-fountain-v2`). Reverse-engineering that to render
-strokes ourselves was tried and dropped: the protobuf structure was decodable far
-enough to confirm it wasn't worth fully cracking, especially since Notein already
-has a native, unpaid "export as PDF" feature per note.
-
-So instead of fighting the file format, notionsmith just watches for the
+Getting handwritten notes into Notion could mean fighting Notein's file format to
+render the strokes directly. It doesn't need to: Notein already has a native, unpaid
+"export as PDF" feature per note, so notionsmith just watches for the
 already-rendered PDF and routes it by filename. The one piece of friction left after
 that, remembering which of ~30 course prefixes to type when naming a file, gets
 solved by `configure`: an interactive TUI that suggests a prefix per course, resolves

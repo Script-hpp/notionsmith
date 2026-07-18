@@ -5,13 +5,9 @@ Notion database, tagged by a `Course` select property.
 
 ## Background
 
-Notein (com.orion.notein.global) stores notes as `.in` files, which are plain ZIP
-archives containing a Room/SQLite database plus JSON metadata. The handwriting itself
-is stored as a proprietary protobuf blob (`ink_stroke_blob`, tagged
-`notein-fountain-v2`) with no public spec. Reverse-engineering that format to render
-the strokes ourselves was considered and dropped: Notein already has a native,
-unpaid "export as PDF" feature per note. This project consumes those already-rendered
-PDFs instead of touching the `.in` format at all.
+Notein already has a native, unpaid "export as PDF" feature per note, so this project
+consumes those already-rendered PDFs instead of dealing with Notein's own file format
+at all.
 
 The workflow: export a note as PDF from Notein by hand, name the file
 `<PREFIX>_<anything>.pdf` (e.g. `MATHE1_Test1.pdf`), let Syncthing land it in a watched
