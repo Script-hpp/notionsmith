@@ -1,0 +1,11 @@
+[package]
+name = "notionsmith"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1.52.3", features = ["full"] }
+serde = { version = "1.0.228", features = ["derive"] }
+reqwest = { version = "0.13.4", features = ["json", "multipart"] }
+dotenvy = "0.15.7"
+serde_json = "1.0.150"
