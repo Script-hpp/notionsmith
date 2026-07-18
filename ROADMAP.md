@@ -1,45 +1,53 @@
 # Roadmap
 
-The biggest risk to this tool isn't the sync logic, it's abandonment: if setting up a
-new subject means hand-copying a 32-character database id into `.env`, that friction
-is enough to make the whole thing fall out of use, and notes end up unsorted again.
-Every item below exists to keep the day-to-day use as close to zero-config as
-possible.
+The biggest risk to this tool isn't the sync logic, it's abandonment: if using it
+day-to-day means remembering cryptic abbreviations or hand-editing `.env`, that
+friction is enough to make the whole thing fall out of use, and notes end up
+unsorted again. Every item below exists to keep the day-to-day use as close to
+zero-effort as possible.
 
-## 1. Interactive `configure` command (next up)
+## Done: interactive `configure` TUI
 
-Replace manual `.env` editing with a guided CLI wizard:
+`cargo run -- configure` (see `src/configure.rs`) fetches the `Kurs` select options
+from the one Notion database, suggests a filename prefix per course, lets the user
+review/edit every suggestion in a full-screen ratatui TUI, and writes the confirmed
+mapping into `.env` as `NOTEIN_COURSE_<PREFIX>` lines.
 
-- `notionsmith configure` calls `POST /v1/search` (filtered to `object: "database"`)
-  with the configured `NOTION_TOKEN`, listing every database the integration can see.
-- The databases are printed as a numbered list (title plus id) so the user can pick
-  one interactively instead of copying ids out of a browser URL bar.
-- For each selected database, the wizard asks for the filename prefix it should map
-  to (e.g. `MATHE1`) and confirms the database has a Title property and a Files &
-  media property before accepting it, catching the "property does not exist" class of
-  error (see the `files and media` casing issue from initial setup) before it ever
-  reaches a sync cycle.
-- Selections are written back into `.env` (or created if missing) as
-  `NOTEIN_DB_<PREFIX>=<id>`, preserving comments and unrelated keys already there.
-- Re-running `configure` shows currently mapped prefixes first and lets the user add
-  to them, rather than starting over.
+Two things this had to get right, both learned from a real failure while building
+the first version:
 
-This turns "add a new subject" into one command with a menu, no manual id lookups.
+- **Collisions must be caught, not just avoided.** The first version's suggestion
+  algorithm gave "Theoretische Informatik I" and "Technische Informatik I" the exact
+  same prefix (`TI1`), silently overwriting one course's mapping with the other's
+  when both landed in the same `.env`. `disambiguate_prefixes` now resolves this
+  automatically before the TUI even opens, and saving is refused outright
+  (`find_duplicate_prefixes`) if a manual edit reintroduces a collision.
+- **Memorization was never the right ask.** No one can reliably recall ~30 generated
+  abbreviations (`MUTDKI`, `SUVS`, ...) well enough to type them correctly on a
+  phone. Instead of chasing a "more memorable" algorithm, `configure` writes a
+  plain-text prefix -> course name reference (`notionsmith-kurse.txt`) directly into
+  `NOTEIN_WATCH_DIR`. Since that folder already syncs to the phone via Syncthing,
+  the cheat sheet is right there to check, exactly when and where naming a file
+  actually happens.
 
-## 2. First-run onboarding
+## Next up
+
+## 1. First-run onboarding
 
 On startup, if `.env` is missing entirely, drop straight into `configure` instead of
 just printing "NOTEIN_WATCH_DIR must be set" and exiting. The watch folder and Notion
-token get asked for as the first two wizard steps.
+token get asked for as the first two wizard steps (they're not currently collected
+by `configure` at all, only the course mapping is).
 
-## 3. Unmapped-prefix reminder, not just a log line
+## 2. Unmapped-prefix reminder, not just a log line
 
-Right now an unmapped prefix (`MATHE_TEST.pdf` when only `NOTEIN_DB_MATHE1` exists)
-is a skip logged once per cycle and easy to miss. Track prefixes seen with no mapping
-across cycles and surface them once, clearly, as "these files are waiting: run
-`configure` to map them", instead of a line buried in a 60-second poll loop.
+Right now an unmapped prefix (`MATHE_TEST.pdf` when only `NOTEIN_COURSE_MATHE1`
+exists) is a skip logged once per cycle and easy to miss. Track prefixes seen with
+no mapping across cycles and surface them once, clearly, as "these files are
+waiting: run `configure` to map them", instead of a line buried in a 60-second poll
+loop.
 
-## 4. Optional desktop notification on successful upload
+## 3. Optional desktop notification on successful upload
 
 A quiet confirmation ("MATHE1_Test1.pdf -> Notion") when a page is created, so the
 daemon's success doesn't only exist as scrollback in a terminal nobody is watching.

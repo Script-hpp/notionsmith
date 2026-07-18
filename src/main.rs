@@ -1,3 +1,4 @@
+mod configure;
 mod notein;
 mod notion;
 mod sync;
@@ -38,13 +39,14 @@ fn load_config() {
     }
 }
 
-/// Builds the prefix -> database id map from every `NOTEIN_DB_<PREFIX>` environment
-/// variable, e.g. `NOTEIN_DB_MATHE1=<database_id>` maps the `MATHE1_` filename prefix
-/// to that database. New subjects only need a new env var, no code change.
-fn load_database_map() -> HashMap<String, String> {
+/// Builds the prefix -> `Kurs` select value map from every `NOTEIN_COURSE_<PREFIX>`
+/// environment variable, e.g. `NOTEIN_COURSE_MATHE1=Mathematik I` maps the `MATHE1_`
+/// filename prefix to that exact select option. New subjects only need a new env
+/// var, no code change.
+fn load_course_map() -> HashMap<String, String> {
     let mut map = HashMap::new();
     for (key, value) in std::env::vars() {
-        if let Some(prefix) = key.strip_prefix("NOTEIN_DB_") {
+        if let Some(prefix) = key.strip_prefix("NOTEIN_COURSE_") {
             map.insert(prefix.to_string(), value);
         }
     }
@@ -54,24 +56,44 @@ fn load_database_map() -> HashMap<String, String> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     load_config();
-    println!("notionsmith sync daemon is running!");
 
     let client = reqwest::Client::builder().timeout(Duration::from_secs(60)).build()?;
 
-    let watch_dir = std::env::var("NOTEIN_WATCH_DIR").expect("NOTEIN_WATCH_DIR must be set");
     let notion_token = std::env::var("NOTION_TOKEN").expect("NOTION_TOKEN must be set");
+    let database_id = std::env::var("NOTION_DATABASE_ID").expect("NOTION_DATABASE_ID must be set");
+    let course_property = std::env
+        ::var("NOTION_COURSE_PROPERTY")
+        .unwrap_or_else(|_| "Kurs".to_string());
+    let watch_dir = std::env::var("NOTEIN_WATCH_DIR").expect("NOTEIN_WATCH_DIR must be set");
+
+    if std::env::args().nth(1).as_deref() == Some("configure") {
+        return configure::run(
+            &client,
+            &notion_token,
+            &database_id,
+            &course_property,
+            std::path::Path::new(&watch_dir)
+        ).await;
+    }
+
+    println!("notionsmith sync daemon is running!");
+
     let title_property = std::env
         ::var("NOTION_TITLE_PROPERTY")
         .unwrap_or_else(|_| "Name".to_string());
     let file_property = std::env
         ::var("NOTION_FILE_PROPERTY")
         .unwrap_or_else(|_| "Files & media".to_string());
+    // Both optional, and only used together: without a configured property name
+    // there's nowhere to write the status value.
+    let status_property = std::env::var("NOTION_STATUS_PROPERTY").ok();
+    let status_value = std::env::var("NOTION_STATUS_VALUE").ok();
 
-    let database_map = load_database_map();
-    if database_map.is_empty() {
-        panic!("No NOTEIN_DB_<PREFIX> environment variables found; nothing to sync to.");
+    let course_map = load_course_map();
+    if course_map.is_empty() {
+        panic!("No NOTEIN_COURSE_<PREFIX> environment variables found; nothing to sync to.");
     }
-    println!("Configured subjects: {}", database_map.keys().cloned().collect::<Vec<_>>().join(", "));
+    println!("Configured subjects: {}", course_map.keys().cloned().collect::<Vec<_>>().join(", "));
 
     let poll_interval = Duration::from_secs(
         std::env
@@ -84,9 +106,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = SyncConfig {
         watch_dir: std::path::PathBuf::from(watch_dir),
         notion_token,
+        database_id,
         title_property,
         file_property,
-        database_map,
+        course_property,
+        status_property,
+        status_value,
+        course_map,
     };
 
     loop {

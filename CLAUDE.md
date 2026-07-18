@@ -1,7 +1,7 @@
 # notionsmith
 
-One-way sync daemon: PDF notes exported from the Notein app -> pages in Notion
-databases, one database per subject prefix.
+One-way sync daemon: PDF notes exported from the Notein app -> pages in a single
+Notion database, tagged by a `Kurs` (course) select property.
 
 ## Background
 
@@ -15,8 +15,15 @@ PDFs instead of touching the `.in` format at all.
 
 The workflow: export a note as PDF from Notein by hand, name the file
 `<PREFIX>_<anything>.pdf` (e.g. `MATHE1_Test1.pdf`), let Syncthing land it in a watched
-folder on this machine. This daemon picks it up from there and uploads it to the
-Notion database configured for that prefix.
+folder on this machine. This daemon picks it up from there, uploads it to the one
+configured Notion database, and sets `Kurs` to whatever that prefix maps to.
+
+Course names are select options on a single Notion database, not separate databases.
+A Relation to a second "Module" database was considered and dropped: a Select the
+sync code writes directly (no page-id lookup needed) was simpler and sufficient.
+`NOTEIN_COURSE_<PREFIX>` maps a filename prefix to the exact select option string;
+`cargo run -- configure` manages that mapping interactively instead of hand-editing
+`.env` (see ROADMAP.md).
 
 ## Language
 
