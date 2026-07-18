@@ -8,7 +8,7 @@ zero-effort as possible.
 
 ## Done: interactive `configure` TUI
 
-`cargo run -- configure` (see `src/configure.rs`) fetches the `Kurs` select options
+`cargo run -- configure` (see `src/configure.rs`) fetches the `Course` select options
 from the one Notion database, suggests a filename prefix per course, lets the user
 review/edit every suggestion in a full-screen ratatui TUI, and writes the confirmed
 mapping into `.env` as `NOTEIN_COURSE_<PREFIX>` lines.
@@ -25,10 +25,10 @@ the first version:
 - **Memorization was never the right ask.** No one can reliably recall ~30 generated
   abbreviations (`MUTDKI`, `SUVS`, ...) well enough to type them correctly on a
   phone. Instead of chasing a "more memorable" algorithm, `configure` keeps a
-  prefix -> course name reference page (titled "📋 Notionsmith Präfixe") directly
+  prefix -> course name reference page (titled "📋 Notionsmith Prefixes") directly
   inside the Notion database itself, so it's checkable from the Notion app on any
   device, no extra sync tool assumed. It also writes the same list to a plain-text
-  `notionsmith-kurse.txt` in `NOTEIN_WATCH_DIR`, a bonus for anyone who happens to
+  `notionsmith-courses.txt` in `NOTEIN_WATCH_DIR`, a bonus for anyone who happens to
   also sync that folder elsewhere (e.g. via Syncthing), but Notion is the one place
   guaranteed to be there regardless of setup.
 - **This tool isn't German-specific, even though the maintainer's curriculum is.**

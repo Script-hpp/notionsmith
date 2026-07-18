@@ -11,7 +11,7 @@ const NOTION_VERSION: &str = "2022-06-28";
 /// (not only as a local file) since Notion is the one thing every user of this tool
 /// has, regardless of whether they also use Syncthing or anything else to sync the
 /// watch folder.
-pub const REFERENCE_PAGE_TITLE: &str = "📋 Notionsmith Präfixe";
+pub const REFERENCE_PAGE_TITLE: &str = "📋 Notionsmith Prefixes";
 
 /// Notion property names, resolved once from config and reused for every page
 /// created in this database.
@@ -28,14 +28,14 @@ pub struct NewNote<'a> {
     pub title: &'a str,
     pub filename: &'a str,
     pub file_upload_id: &'a str,
-    /// The `Kurs` select value. Must match an existing option exactly, otherwise
+    /// The course select value. Must match an existing option exactly, otherwise
     /// Notion silently creates a new (randomly colored) option instead of reusing
     /// one.
     pub course: &'a str,
     pub status: Option<&'a str>,
 }
 
-/// Fetches the exact names of every existing option on the `Kurs` select property,
+/// Fetches the exact names of every existing option on the course select property,
 /// so `configure` can offer them for picking instead of the user having to retype
 /// them (and risking a typo that makes Notion silently create a new option).
 pub async fn fetch_course_options(

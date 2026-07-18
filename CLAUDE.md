@@ -1,7 +1,7 @@
 # notionsmith
 
 One-way sync daemon: PDF notes exported from the Notein app -> pages in a single
-Notion database, tagged by a `Kurs` (course) select property.
+Notion database, tagged by a `Course` select property.
 
 ## Background
 
@@ -16,7 +16,7 @@ PDFs instead of touching the `.in` format at all.
 The workflow: export a note as PDF from Notein by hand, name the file
 `<PREFIX>_<anything>.pdf` (e.g. `MATHE1_Test1.pdf`), let Syncthing land it in a watched
 folder on this machine. This daemon picks it up from there, uploads it to the one
-configured Notion database, and sets `Kurs` to whatever that prefix maps to.
+configured Notion database, and sets `Course` to whatever that prefix maps to.
 
 Course names are select options on a single Notion database, not separate databases.
 A Relation to a second "Module" database was considered and dropped: a Select the
@@ -54,7 +54,7 @@ colon, period, or parentheses instead. Same goes for chat replies to the maintai
 - `src/sync.rs`: the diffing logic and `run_sync_cycle`, the only place that imports
   both `notein` and `notion`.
 - `src/configure.rs`: the interactive `configure` TUI (ratatui/crossterm) and its
-  pure prefix-suggestion logic. Imports `notion` for fetching Kurs options and
+  pure prefix-suggestion logic. Imports `notion` for fetching Course options and
   writing the reference page, but owns all of the `.env`-file reading/writing itself.
 
 When adding a new external call, put it in the module for that system, not in

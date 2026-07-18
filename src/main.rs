@@ -39,7 +39,7 @@ fn load_config() {
     }
 }
 
-/// Builds the prefix -> `Kurs` select value map from every `NOTEIN_COURSE_<PREFIX>`
+/// Builds the prefix -> course select value map from every `NOTEIN_COURSE_<PREFIX>`
 /// environment variable, e.g. `NOTEIN_COURSE_MATHE1=Mathematik I` maps the `MATHE1_`
 /// filename prefix to that exact select option. New subjects only need a new env
 /// var, no code change.
@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let database_id = std::env::var("NOTION_DATABASE_ID").expect("NOTION_DATABASE_ID must be set");
     let course_property = std::env
         ::var("NOTION_COURSE_PROPERTY")
-        .unwrap_or_else(|_| "Kurs".to_string());
+        .unwrap_or_else(|_| "Course".to_string());
     let title_property = std::env
         ::var("NOTION_TITLE_PROPERTY")
         .unwrap_or_else(|_| "Name".to_string());

@@ -13,7 +13,7 @@ pub struct SyncConfig {
     pub course_property: String,
     pub status_property: Option<String>,
     pub status_value: Option<String>,
-    /// Subject prefix (e.g. "MATHE1") -> exact `Kurs` select option (e.g. "Mathematik I").
+    /// Subject prefix (e.g. "MATHE1") -> exact course select option (e.g. "Mathematik I").
     pub course_map: HashMap<String, String>,
 }
 
