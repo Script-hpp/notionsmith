@@ -232,9 +232,10 @@ async fn replace_page_children(
     page_id: &str,
     lines: &[String]
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let children_url = format!("https://api.notion.com/v1/blocks/{}/children?page_size=100", page_id);
+    let list_url = format!("https://api.notion.com/v1/blocks/{}/children?page_size=100", page_id);
+    let append_url = format!("https://api.notion.com/v1/blocks/{}/children", page_id);
     let response = client
-        .get(&children_url)
+        .get(&list_url)
         .header("Authorization", format!("Bearer {}", token))
         .header("Notion-Version", NOTION_VERSION)
         .send().await?;
@@ -260,7 +261,7 @@ async fn replace_page_children(
 
     let new_children: Vec<serde_json::Value> = lines.iter().map(|line| paragraph_block(line)).collect();
     let append_response = client
-        .patch(&children_url)
+        .patch(&append_url)
         .header("Authorization", format!("Bearer {}", token))
         .header("Notion-Version", NOTION_VERSION)
         .json(&serde_json::json!({ "children": new_children }))
