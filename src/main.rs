@@ -64,6 +64,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let course_property = std::env
         ::var("NOTION_COURSE_PROPERTY")
         .unwrap_or_else(|_| "Kurs".to_string());
+    let title_property = std::env
+        ::var("NOTION_TITLE_PROPERTY")
+        .unwrap_or_else(|_| "Name".to_string());
     let watch_dir = std::env::var("NOTEIN_WATCH_DIR").expect("NOTEIN_WATCH_DIR must be set");
 
     if std::env::args().nth(1).as_deref() == Some("configure") {
@@ -72,15 +75,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             &notion_token,
             &database_id,
             &course_property,
+            &title_property,
             std::path::Path::new(&watch_dir)
         ).await;
     }
 
     println!("notionsmith sync daemon is running!");
 
-    let title_property = std::env
-        ::var("NOTION_TITLE_PROPERTY")
-        .unwrap_or_else(|_| "Name".to_string());
     let file_property = std::env
         ::var("NOTION_FILE_PROPERTY")
         .unwrap_or_else(|_| "Files & media".to_string());

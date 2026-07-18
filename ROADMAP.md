@@ -24,11 +24,18 @@ the first version:
   (`find_duplicate_prefixes`) if a manual edit reintroduces a collision.
 - **Memorization was never the right ask.** No one can reliably recall ~30 generated
   abbreviations (`MUTDKI`, `SUVS`, ...) well enough to type them correctly on a
-  phone. Instead of chasing a "more memorable" algorithm, `configure` writes a
-  plain-text prefix -> course name reference (`notionsmith-kurse.txt`) directly into
-  `NOTEIN_WATCH_DIR`. Since that folder already syncs to the phone via Syncthing,
-  the cheat sheet is right there to check, exactly when and where naming a file
-  actually happens.
+  phone. Instead of chasing a "more memorable" algorithm, `configure` keeps a
+  prefix -> course name reference page (titled "📋 Notionsmith Präfixe") directly
+  inside the Notion database itself, so it's checkable from the Notion app on any
+  device, no extra sync tool assumed. It also writes the same list to a plain-text
+  `notionsmith-kurse.txt` in `NOTEIN_WATCH_DIR`, a bonus for anyone who happens to
+  also sync that folder elsewhere (e.g. via Syncthing), but Notion is the one place
+  guaranteed to be there regardless of setup.
+- **This tool isn't German-specific, even though the maintainer's curriculum is.**
+  The abbreviation logic filters out filler words ("und", "der", "die", ...) before
+  taking initials; that list is German by default but overridable via a
+  comma-separated `NOTEIN_STOPWORDS` env var, since this project is OSS and other
+  users' course names won't be in German.
 
 ## Next up
 

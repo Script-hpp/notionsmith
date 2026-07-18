@@ -36,11 +36,28 @@ fn roman_to_digit(word: &str) -> Option<&'static str> {
     }
 }
 
-/// German filler words that shouldn't count as their own initial when abbreviating
-/// a multi-word course name (e.g. "Kommunikations- und Netztechnik" should not
-/// abbreviate the "und" into the initials).
-fn is_stopword(word: &str) -> bool {
-    matches!(word.to_lowercase().as_str(), "und" | "der" | "die" | "das" | "des" | "dem" | "im" | "am")
+/// Filler words that shouldn't count as their own initial when abbreviating a
+/// multi-word course name (e.g. "Kommunikations- und Netztechnik" should not
+/// abbreviate "und" into the initials). Defaults to German since that's the
+/// maintainer's curriculum, but this tool isn't German-specific: override with a
+/// comma-separated `NOTEIN_STOPWORDS` env var for any other language.
+fn default_stopwords() -> std::collections::HashSet<String> {
+    ["und", "der", "die", "das", "des", "dem", "im", "am"].iter().map(|word| word.to_string()).collect()
+}
+
+/// Loads the stopword list from `NOTEIN_STOPWORDS` (comma-separated) if set,
+/// otherwise falls back to `default_stopwords`.
+fn load_stopwords() -> std::collections::HashSet<String> {
+    match std::env::var("NOTEIN_STOPWORDS") {
+        Ok(value) if !value.trim().is_empty() => {
+            value
+                .split(',')
+                .map(|word| word.trim().to_lowercase())
+                .filter(|word| !word.is_empty())
+                .collect()
+        }
+        _ => default_stopwords(),
+    }
 }
 
 /// Suggests a filename prefix for a Notion course name using `letters_per_word`
@@ -50,7 +67,7 @@ fn is_stopword(word: &str) -> bool {
 /// `letters_per_word` values are only used to break a collision between two
 /// course names that would otherwise suggest the same prefix (see
 /// `disambiguate_prefixes`); the starting suggestion always uses 1.
-fn prefix_with_letters(course_name: &str, letters_per_word: usize) -> String {
+fn prefix_with_letters(course_name: &str, letters_per_word: usize, stopwords: &std::collections::HashSet<String>) -> String {
     let words: Vec<&str> = course_name.split_whitespace().collect();
 
     let (base_words, suffix): (Vec<&str>, String) = match words.split_last() {
@@ -63,7 +80,11 @@ fn prefix_with_letters(course_name: &str, letters_per_word: usize) -> String {
         _ => (words.clone(), String::new()),
     };
 
-    let significant: Vec<&str> = base_words.iter().copied().filter(|word| !is_stopword(word)).collect();
+    let significant: Vec<&str> = base_words
+        .iter()
+        .copied()
+        .filter(|word| !stopwords.contains(&word.to_lowercase()))
+        .collect();
     let significant = if significant.is_empty() { base_words } else { significant };
 
     let prefix = if significant.len() > 1 {
@@ -87,8 +108,8 @@ fn prefix_with_letters(course_name: &str, letters_per_word: usize) -> String {
 /// the user reviews and can edit every suggestion in the TUI before saving, and
 /// `disambiguate_prefixes` resolves any collision between two suggestions before
 /// the TUI even opens.
-fn suggest_prefix(course_name: &str) -> String {
-    prefix_with_letters(course_name, 1)
+fn suggest_prefix(course_name: &str, stopwords: &std::collections::HashSet<String>) -> String {
+    prefix_with_letters(course_name, 1, stopwords)
 }
 
 /// Resolves collisions between suggested prefixes in place: two course names that
@@ -97,7 +118,7 @@ fn suggest_prefix(course_name: &str) -> String {
 /// overwrite each other as `NOTEIN_COURSE_<PREFIX>` env vars. Whichever row comes
 /// first keeps the short suggestion; every later collision is regenerated with more
 /// letters per word until it's unique.
-fn disambiguate_prefixes(rows: &mut [CourseRow]) {
+fn disambiguate_prefixes(rows: &mut [CourseRow], stopwords: &std::collections::HashSet<String>) {
     let mut used: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     for row in rows.iter_mut() {
@@ -107,7 +128,7 @@ fn disambiguate_prefixes(rows: &mut [CourseRow]) {
 
         let mut letters_per_word = 2;
         loop {
-            let candidate = prefix_with_letters(&row.name, letters_per_word);
+            let candidate = prefix_with_letters(&row.name, letters_per_word, stopwords);
             if !used.contains(&candidate) || letters_per_word >= 8 {
                 row.prefix = candidate;
                 break;
@@ -184,23 +205,28 @@ fn quote_if_needed(value: &str) -> String {
     if value.contains(' ') { format!("\"{}\"", value) } else { value.to_string() }
 }
 
+/// Sorted "PREFIX -> Course name" lines, shared by both the local cheat sheet and
+/// the Notion reference page.
+fn reference_lines(rows: &[CourseRow]) -> Vec<String> {
+    let mut sorted: Vec<&CourseRow> = rows.iter().collect();
+    sorted.sort_by(|a, b| a.name.cmp(&b.name));
+    sorted.into_iter().map(|row| format!("{} -> {}", row.prefix, row.name)).collect()
+}
+
 const CHEAT_SHEET_FILENAME: &str = "notionsmith-kurse.txt";
 
 /// Writes a plain-text "prefix -> course name" reference into the watch folder
-/// itself, sorted alphabetically by course.
+/// itself.
 ///
 /// The point isn't to memorize ~30 cryptic abbreviations, it's to never have to:
-/// the watch folder already syncs to the phone via Syncthing, so this file lands
-/// right there too, ready to check before naming a fresh export.
-fn write_cheat_sheet(watch_dir: &Path, rows: &[CourseRow]) -> io::Result<()> {
-    let mut sorted: Vec<&CourseRow> = rows.iter().collect();
-    sorted.sort_by(|a, b| a.name.cmp(&b.name));
-
-    let mut content = String::from(
-        "Notionsmith Kurs-Präfixe\n\nDateien benennen als: [PREFIX]_[Thema]_[Datum].pdf\n\n"
-    );
-    for row in sorted {
-        content.push_str(&format!("{:<10} {}\n", row.prefix, row.name));
+/// for anyone who happens to sync that folder to their phone (e.g. via Syncthing),
+/// this file lands right there too. `upsert_reference_page` below is the version
+/// that works for everyone regardless of how the watch folder gets there.
+fn write_cheat_sheet(watch_dir: &Path, lines: &[String]) -> io::Result<()> {
+    let mut content = String::from("Notionsmith Kurs-Präfixe\n\nDateien benennen als: [PREFIX]_[Thema]_[Datum].pdf\n\n");
+    for line in lines {
+        content.push_str(line);
+        content.push('\n');
     }
 
     std::fs::write(watch_dir.join(CHEAT_SHEET_FILENAME), content)
@@ -329,6 +355,7 @@ pub async fn run(
     notion_token: &str,
     database_id: &str,
     course_property: &str,
+    title_property: &str,
     watch_dir: &Path
 ) -> Result<(), Box<dyn std::error::Error>> {
     let course_names = notion::fetch_course_options(client, notion_token, database_id, course_property).await?;
@@ -337,20 +364,21 @@ pub async fn run(
         return Ok(());
     }
 
+    let stopwords = load_stopwords();
     let env_path = resolve_env_path();
     let existing_prefixes = read_existing_prefixes(&env_path);
 
     let mut rows: Vec<CourseRow> = course_names
         .into_iter()
         .map(|name| {
-            let prefix = existing_prefixes.get(&name).cloned().unwrap_or_else(|| suggest_prefix(&name));
+            let prefix = existing_prefixes.get(&name).cloned().unwrap_or_else(|| suggest_prefix(&name, &stopwords));
             CourseRow { name, prefix }
         })
         .collect();
     // Existing mappings can themselves collide (e.g. a corrupted env file from
     // before this check existed), so this runs unconditionally, not just for fresh
     // suggestions.
-    disambiguate_prefixes(&mut rows);
+    disambiguate_prefixes(&mut rows, &stopwords);
 
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -392,22 +420,26 @@ pub async fn run(
                             );
                             continue;
                         }
+
                         write_course_map(&env_path, &rows)?;
-                        if let Err(e) = write_cheat_sheet(watch_dir, &rows) {
-                            status = format!(
-                                "Gespeichert nach {}, aber Kurzreferenz konnte nicht nach {} geschrieben werden: {}.",
-                                env_path.display(),
-                                watch_dir.display(),
-                                e
-                            );
-                        } else {
-                            status = format!(
-                                "Gespeichert nach {}, Kurzreferenz liegt in {}/{}.",
-                                env_path.display(),
-                                watch_dir.display(),
-                                CHEAT_SHEET_FILENAME
-                            );
+                        let lines = reference_lines(&rows);
+                        let mut messages = vec![format!("Gespeichert nach {}.", env_path.display())];
+
+                        match
+                            notion::upsert_reference_page(client, notion_token, database_id, title_property, &lines).await
+                        {
+                            Ok(()) =>
+                                messages.push(
+                                    format!("Referenz-Seite '{}' in Notion aktualisiert.", notion::REFERENCE_PAGE_TITLE)
+                                ),
+                            Err(e) => messages.push(format!("Referenz-Seite in Notion fehlgeschlagen: {}.", e)),
                         }
+
+                        if let Err(e) = write_cheat_sheet(watch_dir, &lines) {
+                            messages.push(format!("Lokale Kurzreferenz fehlgeschlagen: {}.", e));
+                        }
+
+                        status = messages.join(" ");
                         saved = true;
                         break;
                     }

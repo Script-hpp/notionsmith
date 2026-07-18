@@ -25,6 +25,14 @@ sync code writes directly (no page-id lookup needed) was simpler and sufficient.
 `cargo run -- configure` manages that mapping interactively instead of hand-editing
 `.env` (see ROADMAP.md).
 
+`configure`'s suggested prefixes can collide (two different course names abbreviating
+to the same string) and would otherwise silently overwrite one course's env var with
+another's; `disambiguate_prefixes` resolves this before the TUI opens, and saving is
+refused outright if a manual edit reintroduces a collision. It also keeps a
+prefix -> course reference both as a page inside the Notion database itself (not
+just a local file) since Notion, unlike any particular sync tool, is the one thing
+every user of this project has.
+
 ## Language
 
 All code, comments, doc comments, commit messages, `println!` output, and
@@ -41,10 +49,13 @@ colon, period, or parentheses instead. Same goes for chat replies to the maintai
 - `src/notein.rs`: everything about the local watch folder, scanning for PDFs and
   parsing the `<PREFIX>_` filename convention. Nothing here knows about Notion.
 - `src/notion.rs` + `src/notion/model.rs`: all Notion API interaction (querying
-  existing page titles, the three-step file upload, page creation). Nothing here
-  knows about the local filesystem.
+  existing page titles, the file upload, page creation, the reference page). Nothing
+  here knows about the local filesystem.
 - `src/sync.rs`: the diffing logic and `run_sync_cycle`, the only place that imports
   both `notein` and `notion`.
+- `src/configure.rs`: the interactive `configure` TUI (ratatui/crossterm) and its
+  pure prefix-suggestion logic. Imports `notion` for fetching Kurs options and
+  writing the reference page, but owns all of the `.env`-file reading/writing itself.
 
 When adding a new external call, put it in the module for that system, not in
 `sync.rs` or `main.rs`.

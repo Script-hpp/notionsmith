@@ -27,17 +27,22 @@ See [CLAUDE.md](CLAUDE.md) for module layout and conventions, and
    integration secret from https://www.notion.so/my-integrations), and
    `NOTION_DATABASE_ID`.
 3. Run `cargo run -- configure`. It fetches your `Kurs` options from Notion, suggests
-   a filename prefix per course, lets you review/edit each one (arrow keys to
-   navigate, Enter to edit, `s` to save), and writes the confirmed mapping into
-   `.env` as `NOTEIN_COURSE_<PREFIX>` lines. It also drops a plain-text
-   `notionsmith-kurse.txt` reference (prefix -> course name) into
-   `NOTEIN_WATCH_DIR`, which syncs to your phone the same way the PDFs do, so naming
-   a file correctly never depends on memorizing an abbreviation.
+   a filename prefix per course (guaranteeing no two collide), and lets you
+   review/edit each one (arrow keys to navigate, Enter to edit, `s` to save). Saving
+   writes the confirmed mapping into `.env` as `NOTEIN_COURSE_<PREFIX>` lines, and
+   keeps a prefix -> course name reference up to date in two places: a page inside
+   your Notion database itself (titled "📋 Notionsmith Präfixe", so it's there on
+   your phone in the Notion app regardless of your sync setup), and a plain-text
+   `notionsmith-kurse.txt` in `NOTEIN_WATCH_DIR` for anyone who also syncs that
+   folder elsewhere (e.g. via Syncthing). Either way, naming a file correctly never
+   depends on memorizing an abbreviation.
 4. `cargo run` to start the sync daemon.
 
 If your Title or Files & media property is named differently than Notion's
 defaults, set `NOTION_TITLE_PROPERTY` / `NOTION_FILE_PROPERTY` in `.env` to match
-exactly (property names are case-sensitive to the API).
+exactly (property names are case-sensitive to the API). `configure`'s prefix
+suggestions filter out a small set of German filler words ("und", "der", ...) by
+default; override with a comma-separated `NOTEIN_STOPWORDS` for other languages.
 
 ## Related
 

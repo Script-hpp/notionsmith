@@ -11,7 +11,15 @@ pub struct DatabaseQueryResponse {
 
 #[derive(Deserialize)]
 pub struct PageResult {
+    pub id: String,
     pub properties: serde_json::Value,
+}
+
+/// Response from `POST /v1/pages`: just enough to chain into a follow-up call that
+/// appends block content to the new page.
+#[derive(Deserialize)]
+pub struct CreatePageResponse {
+    pub id: String,
 }
 
 /// Response from `POST /v1/file_uploads`: the pending upload's id and the URL its
