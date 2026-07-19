@@ -1,0 +1,34 @@
+services:
+  syncthing:
+    image: 'syncthing/syncthing:latest'
+    container_name: syncthing
+    hostname: syncthing-server
+    environment:
+      - PUID=1000
+      - PGID=1000
+    volumes:
+      - 'syncthing-config:/var/syncthing'
+      - '/opt/notionsmith/watch:/data'
+    ports:
+      - '22000:22000/tcp'
+      - '22000:22000/udp'
+    expose:
+      - '8384'
+    restart: unless-stopped
+
+  notionsmith:
+    build:
+      context: .
+    container_name: notionsmith
+    env_file:
+      - .env
+    environment:
+      - NOTEIN_WATCH_DIR=/data
+    volumes:
+      - '/opt/notionsmith/watch:/data'
+    depends_on:
+      - syncthing
+    restart: unless-stopped
+
+volumes:
+  syncthing-config: null
