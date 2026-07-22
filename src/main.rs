@@ -1,4 +1,5 @@
 mod configure;
+mod history;
 mod notein;
 mod notion;
 mod sync;
@@ -16,6 +17,16 @@ fn xdg_config_dir() -> Option<std::path::PathBuf> {
         return Some(std::path::PathBuf::from(xdg));
     }
     std::env::var("HOME").ok().map(|home| std::path::PathBuf::from(home).join(".config"))
+}
+
+/// Resolves `$XDG_DATA_HOME`, falling back to `~/.local/share` per XDG convention.
+fn xdg_data_dir() -> Option<std::path::PathBuf> {
+    if let Ok(xdg) = std::env::var("XDG_DATA_HOME")
+        && !xdg.is_empty()
+    {
+        return Some(std::path::PathBuf::from(xdg));
+    }
+    std::env::var("HOME").ok().map(|home| std::path::PathBuf::from(home).join(".local").join("share"))
 }
 
 /// Loads config from `~/.config/notionsmith/.env` if present, otherwise from `.env`
@@ -104,8 +115,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .unwrap_or(60)
     );
 
+    let history_path = std::env::var("SYNC_HISTORY_PATH")
+        .ok()
+        .map(std::path::PathBuf::from)
+        .or_else(|| xdg_data_dir().map(|dir| dir.join("notionsmith").join("history.json")))
+        .unwrap_or_else(|| std::path::PathBuf::from("history.json"));
+
     let config = SyncConfig {
         watch_dir: std::path::PathBuf::from(watch_dir),
+        history_path,
         notion_token,
         database_id,
         title_property,

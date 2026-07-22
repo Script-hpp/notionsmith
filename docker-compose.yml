@@ -24,6 +24,7 @@ services:
       - .env
     environment:
       - NOTEIN_WATCH_DIR=/data
+      - SYNC_HISTORY_PATH=/data/history.json
     volumes:
       - '/opt/notionsmith/watch:/data'
     depends_on:

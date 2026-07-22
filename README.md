@@ -1,23 +1,25 @@
 # notionsmith
 
-Handwritten notes from a phone note-taking app, ending up as searchable pages in
-Notion, tagged by course, without ever touching the app's proprietary file format.
+Handwritten notes from any note-taking app, ending up as searchable pages in Notion,
+tagged by course, as long as that app can export a note as PDF.
 
-notionsmith watches a folder for PDFs exported from [Notein](https://play.google.com/store/apps/details?id=com.orion.notein.global),
-uploads each one to a single Notion database, and tags it with a `Course` select
-property derived from the filename.
+notionsmith watches a folder for exported PDFs, uploads each one to a single Notion
+database, and tags it with a `Course` select property derived from the filename. It
+was originally built around [Notein](https://play.google.com/store/apps/details?id=com.orion.notein.global)'s
+own "export as PDF" feature, but doesn't care which app produced the PDF: any app
+that can export a note to PDF and let you name the file works the same way.
 
 ## Why this exists
 
-Getting handwritten notes into Notion could mean fighting Notein's file format to
-render the strokes directly. It doesn't need to: Notein already has a native, unpaid
-"export as PDF" feature per note, so notionsmith just watches for the
-already-rendered PDF and routes it by filename. The one piece of friction left after
-that, remembering which of ~30 course prefixes to type when naming a file, gets
-solved by `configure`: an interactive TUI that suggests a prefix per course, resolves
-collisions between suggestions automatically, and keeps a plain-language reference
-(prefix -> course name) as a page inside Notion itself, so it's checkable from the
-phone regardless of what else syncs the watch folder.
+Getting handwritten notes into Notion could mean fighting a note app's proprietary
+file format to render the strokes directly. It doesn't need to: most note apps
+already have a native, unpaid "export as PDF" feature per note, so notionsmith just
+watches for the already-rendered PDF and routes it by filename. The one piece of
+friction left after that, remembering which of ~30 course prefixes to type when
+naming a file, gets solved by `configure`: an interactive TUI that suggests a prefix
+per course, resolves collisions between suggestions automatically, and keeps a
+plain-language reference (prefix -> course name) as a page inside Notion itself, so
+it's checkable from the phone regardless of what else syncs the watch folder.
 
 This is the counterpart to [notionless](https://github.com/Script-hpp/notionless):
 notionless takes typed Notion pages out into Paperless-ngx, notionsmith takes
@@ -71,11 +73,12 @@ Honest state, so nobody wastes time:
    cargo run
    ```
 
-Export a note as PDF from Notein, name the file `<PREFIX>_<anything>.pdf` (e.g.
-`MATHE1_Test1.pdf`), and let whatever you use to sync the watch folder (Syncthing or
-otherwise) land it there. notionsmith picks it up on the next scan, uploads it, and
-sets `Course` to whatever that prefix maps to. The prefix itself is stripped from the
-page title, since the course already carries that information.
+Export a note as PDF from whatever app you take notes in, name the file
+`<PREFIX>_<anything>.pdf` (e.g. `MATHE1_Test1.pdf`), and let whatever you use to sync
+the watch folder (Syncthing or otherwise) land it there. notionsmith picks it up on
+the next scan, uploads it, and sets `Course` to whatever that prefix maps to. The
+prefix itself is stripped from the page title, since the course already carries that
+information.
 
 ## Configuration
 
@@ -90,6 +93,7 @@ page title, since the course already carries that information.
 | `NOTION_STATUS_PROPERTY` / `NOTION_STATUS_VALUE` | no | Also set a Status select value on every imported note; both or neither |
 | `NOTEIN_STOPWORDS` | no | Comma-separated filler words `configure` ignores when abbreviating a course name (default: a small German list) |
 | `SYNC_INTERVAL_SECS` | no | Seconds between scans of the watch folder (default: `60`) |
+| `SYNC_HISTORY_PATH` | no | File path where sync state history is saved (default: `$XDG_DATA_HOME/notionsmith/history.json`) |
 | `NOTEIN_COURSE_<PREFIX>` | yes (one per course) | Maps a filename prefix to an exact `Course` select option; managed by `configure`, not meant to be hand-written |
 
 notionsmith looks for a `.env` file in two places, first one found wins:
@@ -103,6 +107,7 @@ the current directory.
 - `src/notion.rs` + `src/notion/model.rs`: all Notion API interaction (file upload,
   page creation, the reference page).
 - `src/sync.rs`: the diffing logic and `run_sync_cycle`.
+- `src/history.rs`: persistent local sync history (`history.json`).
 - `src/configure.rs`: the interactive `configure` TUI (ratatui/crossterm) and its
   prefix-suggestion logic.
 

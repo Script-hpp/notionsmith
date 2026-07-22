@@ -6,6 +6,7 @@ use std::path::PathBuf;
 /// Everything the sync cycle needs, loaded once at startup from the environment.
 pub struct SyncConfig {
     pub watch_dir: PathBuf,
+    pub history_path: PathBuf,
     pub notion_token: String,
     pub database_id: String,
     pub title_property: String,
@@ -32,6 +33,9 @@ pub async fn run_sync_cycle(
     let existing_titles = notion
         ::fetch_existing_titles(client, &config.notion_token, &config.database_id, &config.title_property).await?;
 
+    let mut history = crate::history::SyncHistory::load(&config.history_path);
+    let mut history_changed = false;
+
     let properties = PropertyNames {
         title: &config.title_property,
         file: &config.file_property,
@@ -45,8 +49,32 @@ pub async fn run_sync_cycle(
             continue;
         };
 
+        let metadata = match std::fs::metadata(&file.path) {
+            Ok(m) => m,
+            Err(e) => {
+                println!("  ✗ Failed to read metadata for '{}': {}", file.filename, e);
+                continue;
+            }
+        };
+        let file_size = metadata.len();
+        let modified_secs = metadata
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+
         if existing_titles.contains(&file.title) {
             println!("  ✓ '{}' already uploaded.", file.title);
+            if !history.is_already_synced(file, file_size, modified_secs) {
+                history.record(file, file_size, modified_secs);
+                history_changed = true;
+            }
+            continue;
+        }
+
+        if history.is_already_synced(file, file_size, modified_secs) {
+            println!("  ✓ '{}' was previously uploaded (skipping re-upload of deleted/renamed note).", file.title);
             continue;
         }
 
@@ -70,12 +98,22 @@ pub async fn run_sync_cycle(
                         &note
                     ).await
                 {
-                    Ok(()) => println!("  ✓ Created page for '{}'.", file.title),
+                    Ok(()) => {
+                        println!("  ✓ Created page for '{}'.", file.title);
+                        history.record(file, file_size, modified_secs);
+                        history_changed = true;
+                    }
                     Err(e) => println!("  ✗ Failed to create page for '{}': {}", file.title, e),
                 }
             }
             Err(e) => println!("  ✗ Failed to upload '{}': {}", file.filename, e),
         }
+    }
+
+    if history_changed
+        && let Err(e) = history.save(&config.history_path)
+    {
+        println!("  ⚠ Failed to save history to {:?}: {}", config.history_path, e);
     }
 
     Ok(())
